@@ -1,0 +1,30 @@
+{
+  "name": "gridex-skills",
+  "version": "1.0.0",
+  "description": "Agent skill for Gridex — a comprehensive React data grid library with all enterprise features, built on TanStack Table v8",
+  "keywords": [
+    "agent-skill",
+    "gridex",
+    "react",
+    "data-grid",
+    "table",
+    "tanstack-table",
+    "datagrid",
+    "spreadsheet",
+    "sorting",
+    "filtering",
+    "pagination",
+    "editing",
+    "virtualization",
+    "export"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/irbano-tech/gridex-skills.git"
+  },
+  "homepage": "https://github.com/irbano-tech/gridex-skills#readme",
+  "bugs": {
+    "url": "https://github.com/irbano-tech/gridex-skills/issues"
+  }
+}
