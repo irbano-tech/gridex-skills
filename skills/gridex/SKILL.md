@@ -397,14 +397,47 @@ if (isFilterBuilderGroup(item)) { /* nested group */ }
 />
 ```
 
+### Config Provider (Shared Defaults)
+
+```tsx
+import { GridexConfigProvider, ptBR } from "gridex";
+import type { GridexConfig } from "gridex";
+
+// Define shared config once — all nested <Gridex> instances inherit it
+<GridexConfigProvider
+  config={{
+    theme: "dark",
+    density: "compact",
+    locale: ptBR,
+    striped: true,
+    enableFind: true,
+    showRowNumbers: true,
+  }}
+>
+  <Gridex data={data1} columns={cols1} />
+  <Gridex data={data2} columns={cols2} />
+  {/* Per-instance override still works */}
+  <Gridex data={data3} columns={cols3} theme="light" />
+</GridexConfigProvider>
+```
+
+**Shareable `GridexConfig` props:** `theme`, `themePreset`, `density`, `striped`, `rtl`, `locale`, `iconPack`, `tooltipConfig`, `dragConfig`, `enableContextMenu`, `enableTouchOptimization`, `enableRowAnimation`, `enableFind`, `enableColumnHoverHighlight`, `showRowNumbers`, `layout`, `responsiveView`, `responsiveBreakpoint`, `loadingRowCount`
+
+**Nesting:** Inner `GridexConfigProvider` merges with outer — inherits unset props, overrides set ones.
+
+**Dynamic switching:** Pass a stateful config object; all grids update when state changes.
+
+**SSR safe:** Uses only `useMemo` + `useContext` — no browser APIs.
+
 ### i18n Provider & Hook
 
 ```tsx
 import { GridexI18nProvider, useTranslations, t } from "gridex";
 
-// Wrap components for translation access outside Gridex
+// Set locale once for all nested grids (also works via GridexConfigProvider)
 <GridexI18nProvider translations={ptBR}>
-  <MyCustomComponent />
+  <Gridex data={data1} columns={cols1} />
+  <Gridex data={data2} columns={cols2} />
 </GridexI18nProvider>
 
 // Access translations in custom components

@@ -267,6 +267,101 @@ const myIcons = {
 };
 ```
 
+## Config Provider (Shared Defaults)
+
+`GridexConfigProvider` lets you define shared configuration once and have all nested `<Gridex>` instances inherit it. Any prop set directly on `<Gridex>` takes precedence.
+
+```tsx
+import { GridexConfigProvider, ptBR } from "gridex";
+import type { GridexConfig } from "gridex";
+
+<GridexConfigProvider
+  config={{
+    theme: "dark",
+    themePreset: "alpine",
+    density: "compact",
+    striped: true,
+    locale: ptBR,
+    enableFind: true,
+    showRowNumbers: true,
+    enableContextMenu: true,
+  }}
+>
+  <Gridex data={data1} columns={cols1} />
+  <Gridex data={data2} columns={cols2} />
+  {/* Per-instance override */}
+  <Gridex data={data3} columns={cols3} theme="light" density="spacious" />
+</GridexConfigProvider>
+```
+
+### Shareable Props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `theme` | `"light" \| "dark" \| "auto" \| CSSVariableMap` | Theme mode |
+| `themePreset` | `"material" \| "alpine" \| "quartz" \| "minimal" \| "corporate" \| "highContrast"` | Visual preset |
+| `density` | `"compact" \| "comfortable" \| "spacious"` | Row density |
+| `striped` | `boolean` | Alternating row colors |
+| `rtl` | `boolean` | Right-to-left layout |
+| `locale` | `GridexTranslations \| GridexLocaleOverrides` | i18n translations |
+| `iconPack` | `GridexIconPack` | Custom icon overrides |
+| `tooltipConfig` | `GridexTooltipConfig` | Tooltip behavior |
+| `dragConfig` | `GridexDragConfig` | Drag behavior |
+| `enableContextMenu` | `boolean` | Right-click context menu |
+| `enableTouchOptimization` | `boolean` | Touch-friendly interactions |
+| `enableRowAnimation` | `boolean` | Row add/remove animation |
+| `enableFind` | `boolean` | Find bar (Ctrl+F) |
+| `enableColumnHoverHighlight` | `boolean` | Column hover highlight |
+| `showRowNumbers` | `boolean` | Row number column |
+| `layout` | `"normal" \| "autoHeight"` | Layout mode |
+| `responsiveView` | `"table" \| "list" \| "card" \| "auto"` | Responsive view mode |
+| `responsiveBreakpoint` | `number` | Auto-mode breakpoint (px) |
+| `loadingRowCount` | `number` | Skeleton rows when loading |
+
+### Nesting Providers
+
+Inner providers merge with outer ones — inherits unset props, overrides set ones:
+
+```tsx
+<GridexConfigProvider config={{ theme: "dark", density: "compact" }}>
+  <Gridex data={data1} columns={cols1} />  {/* dark + compact */}
+
+  <GridexConfigProvider config={{ locale: esES, striped: true }}>
+    <Gridex data={data2} columns={cols2} />  {/* dark + compact + Spanish + striped */}
+  </GridexConfigProvider>
+</GridexConfigProvider>
+```
+
+### Dynamic Config Switching
+
+```tsx
+const [config, setConfig] = useState<GridexConfig>({
+  theme: "light",
+  density: "comfortable",
+  locale: enUS,
+});
+
+<GridexConfigProvider config={config}>
+  <button onClick={() => setConfig(prev => ({ ...prev, theme: "dark" }))}>
+    Toggle Dark
+  </button>
+  <Gridex data={data} columns={columns} />
+</GridexConfigProvider>
+```
+
+### useGridexConfig Hook
+
+Access the current shared config from any child component:
+
+```tsx
+import { useGridexConfig } from "gridex";
+
+function MyComponent() {
+  const config = useGridexConfig();
+  // config.theme, config.density, config.locale, etc.
+}
+```
+
 ## Internationalization (i18n)
 
 ### Built-in Locales (35)
@@ -274,18 +369,26 @@ const myIcons = {
 ```tsx
 import { Gridex, ptBR, esES, frFR, deDE, jaJP, zhCN, koKR } from "gridex";
 
+// Per-instance locale
 <Gridex data={data} columns={columns} locale={ptBR} />
+
+// Or set once via provider (recommended for multi-grid apps)
+<GridexConfigProvider config={{ locale: ptBR }}>
+  <Gridex data={data1} columns={cols1} />
+  <Gridex data={data2} columns={cols2} />
+</GridexConfigProvider>
 ```
 
 ### i18n Provider & Hook
 
-Use translations outside the `<Gridex>` component tree:
+Set locale for all nested grids, or access translations in custom components:
 
 ```tsx
 import { GridexI18nProvider, useTranslations, t } from "gridex";
 
-// Wrap custom components for translation access
+// Locale-only provider (also works via GridexConfigProvider)
 <GridexI18nProvider translations={ptBR}>
+  <Gridex data={data1} columns={cols1} />
   <MyCustomToolbar />
 </GridexI18nProvider>
 
