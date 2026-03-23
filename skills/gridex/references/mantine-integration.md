@@ -39,6 +39,7 @@ import type { MantineGridexProps } from "gridex-mantine";
 3. Maps column types to Mantine editors (only if column has no custom `meta.editor`)
 4. Applies the Tabler icon pack (user icons take precedence)
 5. Maps 53 CSS variables to Mantine design tokens
+6. All slot components use gridex's i18n system — pass `locale` prop or use `GridexConfigProvider` to localize all Mantine UI strings
 
 ## Theme System
 
@@ -185,13 +186,13 @@ import {
 - Props: `{pageIndex, pageCount, pageSize, totalRows, goToPage, setPageSize}`
 - Page size options: 5, 10, 20, 50, 100
 
-**MantineEmptyState** — Centered "No data to display" with hint text
+**MantineEmptyState** — Centered empty state with localized text (noData + noDataHint)
 - Props: `{columnCount}`
 
 **MantineLoadingState** — 6 skeleton rows with Mantine Skeleton
 - Props: `{columnCount}`
 
-**MantineToolbar** — TextInput search bar with global filter
+**MantineToolbar** — TextInput search bar with localized placeholder
 - Props: `{table}`
 
 ### Interactive Slots
@@ -243,7 +244,7 @@ import {
 
 **MantineContextMenu** — Right-click context menu
 - Props: `{items, cellValue, rowValues, children}`
-- Default items: "Copy Cell", "Copy Row"
+- Default items: localized "Copy Cell", "Copy Row" (from `editing.copyCell`, `editing.copyRow`)
 - Custom items appended with divider
 
 **MantineColumnMenu** — Column header menu
@@ -273,6 +274,42 @@ import {
 **MantineListView** — Responsive list layout
 - Props: `{table, onRowClick?, renderListItem?}`
 - Stack of Paper items, selected state: blue outline + Badge
+
+## Internationalization
+
+All 21 Mantine slot components use gridex's `useTranslations()` hook. This means the `locale` prop on `<MantineGridex>` (or `GridexConfigProvider`) localizes **all** Mantine UI strings — pagination labels, filter placeholders, empty states, context menus, editing dialogs, sidebar tabs, batch edit toolbar, etc.
+
+```tsx
+import { MantineProvider } from "@mantine/core";
+import { MantineGridex } from "gridex-mantine";
+import { ptBR } from "gridex";
+
+// All Mantine slot strings are automatically localized
+<MantineProvider>
+  <MantineGridex data={data} columns={columns} locale={ptBR} />
+</MantineProvider>
+
+// Or via GridexConfigProvider for multiple grids
+import { GridexConfigProvider } from "gridex";
+
+<MantineProvider>
+  <GridexConfigProvider config={{ locale: ptBR }}>
+    <MantineGridex data={data1} columns={cols1} />
+    <MantineGridex data={data2} columns={cols2} />
+  </GridexConfigProvider>
+</MantineProvider>
+```
+
+**Translation keys used by Mantine slots:**
+- `pagination.*` — MantinePagination (showing, noRows, perPage)
+- `filtering.*` — MantineColumnFilter, MantineAdvancedFilterDialog, MantineFilterBuilder, MantineFindBar, MantineToolbar
+- `editing.*` — MantinePopupEditDialog, MantineFormEditPanel, MantineBatchEditToolbar, MantineContextMenu, MantineCellComment
+- `sorting.*` — MantineColumnMenu (sortAscending, sortDescending, clearSort)
+- `columns.*` — MantineColumnVisibility, MantineColumnMenu (hideColumn, autoSize)
+- `sidebar.*` — MantineSidebar (columns, filters, filterHint)
+- `statusBar.*` — MantineStatusBar (totalRows, filteredRows, selectedRows)
+- `empty.*` — MantineEmptyState, MantineCardView, MantineListView (noData, noDataHint)
+- `selection.*` — MantineCardView, MantineListView (selected)
 
 ## Companion Components
 

@@ -191,6 +191,10 @@ Override CSS variables under the dark mode scope:
 }
 ```
 
+### Turbopack / Lightning CSS Compatibility
+
+Gridex's CSS Modules are fully compatible with Turbopack (Next.js). Dark mode uses a local `.darkTheme` CSS class internally — no root-level `:global()` selectors that would break Lightning CSS parsing. No `--webpack` flag is needed.
+
 ## Icon Pack
 
 Replace all built-in icons with custom components:
@@ -471,6 +475,9 @@ const myLocale: GridexTranslations = {
     noMatchingValues: "No matching values",
     nValues: "{count} values selected",
     clearFilter: "Clear filter",
+    findPlaceholder: "Find...",
+    noMatches: "No matches",
+    addGroup: "Add Group",
     operators: {
       equals: "Equals",
       notEquals: "Not equals",
@@ -490,16 +497,21 @@ const myLocale: GridexTranslations = {
   selection: {
     selectAll: "Select all rows",
     selectRow: "Select row {index}",
+    selected: "Selected",
   },
   columns: {
     toggleVisibility: "Columns",
+    hideColumn: "Hide Column",
+    autoSize: "Auto-size",
   },
   sorting: {
     sortAscending: "Sorted ascending",
     sortDescending: "Sorted descending",
+    clearSort: "Clear Sort",
   },
   empty: {
     noData: "No data to display",
+    noDataHint: "Try adjusting your filters or adding new records.",
   },
   overlay: {
     loading: "Loading...",
@@ -510,7 +522,17 @@ const myLocale: GridexTranslations = {
   loading: {
     loadingMore: "Loading more...",
   },
-  editing: {},
+  editing: {
+    editTitle: "Edit",
+    save: "Save",
+    cancel: "Cancel",
+    saveAll: "Save All",
+    discard: "Discard",
+    copyCell: "Copy Cell",
+    copyRow: "Copy Row",
+    edit: "Edit",
+    pendingChanges: "{count} pending change(s)",
+  },
   statusBar: {
     totalRows: "Total Rows",
     filteredRows: "Filtered Rows",
@@ -529,6 +551,7 @@ const myLocale: GridexTranslations = {
     pinLeft: "Pin Left",
     pinRight: "Pin Right",
     unpin: "Unpin",
+    filterHint: "Use column header filters to filter data.",
   },
   accessibility: {
     gridLabel: "Data grid",

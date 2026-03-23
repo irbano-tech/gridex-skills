@@ -497,8 +497,10 @@ pnpm dev:playground     # Start playground (port 5173)
 
 - **Monorepo:** pnpm workspaces — `packages/gridex`, `packages/gridex-mantine`, `apps/docs`, `apps/playground`, `apps/landing`
 - **Build:** tsup outputs ESM + CJS + `.d.ts`. CSS via CSS Modules.
+- **Turbopack compatible** — CSS Modules use local `.darkTheme` class instead of root-level `:global()` selectors. No `--webpack` flag needed with Next.js Turbopack.
 - **Storybook resolves from source** (not `dist/`) because tsup compiles CSS Modules to empty objects
 - **Server-side `dataSource` bypasses intermediate hooks** to prevent infinite re-render loops
 - **`useDataSource` uses serialized primitive deps** (`JSON.stringify`) to avoid object identity infinite loops
 - **Pinned columns cannot be dragged** — sticky position + drag reorder creates confusing UX
 - **i18n uses deep partial merge** — pass a `DeepPartial<GridexTranslations>` to override specific strings
+- **gridex-mantine is fully localized** — all 21 slot components use `useTranslations()` from gridex's i18n system
