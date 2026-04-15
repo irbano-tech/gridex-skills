@@ -202,7 +202,8 @@ col.accessor("price", {
 | `sparkline` | `{ type, dataField?, color?, height? }` | Mini chart config |
 | `colSpan` | `number \| (row) => number` | Column spanning |
 | `rowSpan` | `number \| (row, rowIndex) => number` | Row spanning |
-| `align` | `"left" \| "center" \| "right" \| "justify"` | Horizontal text alignment |
+| `align` | `"left" \| "center" \| "right" \| "justify"` | Horizontal text alignment for data cells |
+| `headerAlign` | `"left" \| "center" \| "right" \| "justify"` | Horizontal text alignment for the header (independent of `align`) |
 | `verticalAlign` | `"top" \| "middle" \| "bottom"` | Vertical alignment |
 | `responsivePriority` | `number` | Lower = hidden first on small screens |
 | `dependentColumns` | `string[]` | Re-render these columns on edit |

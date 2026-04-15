@@ -115,6 +115,8 @@ export default function App() {
     enableVisibility: true,
     enableStretching: true,                // Stretch columns to fill width
     stretchMode: "all",                    // "all" | "last" | "fit"
+    defaultAlign: "left",                  // Default data cell alignment
+    defaultHeaderAlign: "center",          // Default header alignment (independent)
   }}
 
   // Virtualization
