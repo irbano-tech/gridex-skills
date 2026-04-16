@@ -284,7 +284,11 @@ const formatter = getDataTypeFormatter("rating");
 Convenience types to reduce generic boilerplate:
 
 ```tsx
-import type { GridexColumnDef, GridexRowData, GridexCellValue } from "gridex";
+import type { GridexColumnDef, GridexRowData, GridexCellValue, Align } from "gridex";
+
+// Align — "left" | "center" | "right" | "justify"
+// Used for column align, headerAlign, and provider defaultAlign/defaultHeaderAlign
+type MyAlign = Align; // Re-exported from gridex
 
 // GridexColumnDef<TData> — Alias for ColumnDef<TData, any>
 // Avoids needing eslint-disable for the second TanStack generic

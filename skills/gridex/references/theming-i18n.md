@@ -321,6 +321,8 @@ import type { GridexConfig } from "gridex";
 | `responsiveView` | `"table" \| "list" \| "card" \| "auto"` | Responsive view mode |
 | `responsiveBreakpoint` | `number` | Auto-mode breakpoint (px) |
 | `loadingRowCount` | `number` | Skeleton rows when loading |
+| `defaultAlign` | `Align` | Default data cell alignment for all columns |
+| `defaultHeaderAlign` | `Align` | Default header alignment for all columns (independent of `defaultAlign`) |
 
 ### Nesting Providers
 

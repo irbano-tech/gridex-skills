@@ -371,8 +371,9 @@ import {
 ### Type Helpers
 
 ```tsx
-import type { GridexColumnDef, GridexRowData, GridexCellValue } from "gridex";
+import type { GridexColumnDef, GridexRowData, GridexCellValue, Align } from "gridex";
 
+// Align — "left" | "center" | "right" | "justify" (used for align, headerAlign, defaultAlign, defaultHeaderAlign)
 // GridexColumnDef<TData> — Convenience alias for ColumnDef<TData, any>
 // GridexRowData<TColumns> — Extracts row data type from column definitions
 // GridexCellValue<TData, TKey> — Extracts cell value type from data + key
@@ -414,6 +415,8 @@ import type { GridexConfig } from "gridex";
     striped: true,
     enableFind: true,
     showRowNumbers: true,
+    defaultAlign: "left",
+    defaultHeaderAlign: "center",
   }}
 >
   <Gridex data={data1} columns={cols1} />
@@ -423,7 +426,7 @@ import type { GridexConfig } from "gridex";
 </GridexConfigProvider>
 ```
 
-**Shareable `GridexConfig` props:** `theme`, `themePreset`, `density`, `striped`, `rtl`, `locale`, `iconPack`, `tooltipConfig`, `dragConfig`, `enableContextMenu`, `enableTouchOptimization`, `enableRowAnimation`, `enableFind`, `enableColumnHoverHighlight`, `showRowNumbers`, `layout`, `responsiveView`, `responsiveBreakpoint`, `loadingRowCount`
+**Shareable `GridexConfig` props:** `theme`, `themePreset`, `density`, `striped`, `rtl`, `locale`, `iconPack`, `tooltipConfig`, `dragConfig`, `enableContextMenu`, `enableTouchOptimization`, `enableRowAnimation`, `enableFind`, `enableColumnHoverHighlight`, `showRowNumbers`, `layout`, `responsiveView`, `responsiveBreakpoint`, `loadingRowCount`, `defaultAlign`, `defaultHeaderAlign`
 
 **Nesting:** Inner `GridexConfigProvider` merges with outer — inherits unset props, overrides set ones.
 
