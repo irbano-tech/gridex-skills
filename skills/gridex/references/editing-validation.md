@@ -107,6 +107,35 @@ Dialog-based editing — similar to form but in a popup overlay:
 | `"doubleClick"` | Double-click enters edit mode (default) |
 | `"keypress"` | Start typing to enter edit mode on focused cell |
 
+## Tab Navigation While Editing
+
+By default, Tab on the last editable cell of a row confirms the edit and stops — focus does not leap to the next row. Set `editing.wrapNavigation: true` to wrap to the first editable cell of the next row (and Shift+Tab on the first to the last of the previous row), matching AG Grid.
+
+```tsx
+<Gridex
+  data={data}
+  columns={columns}
+  editing={{
+    enabled: true,
+    trigger: "doubleClick",
+    wrapNavigation: true, // Tab wraps between rows while editing
+  }}
+/>
+```
+
+Grid-level Tab behavior (outside of edit mode) is controlled by `keyboard.tabBehavior`:
+
+- `"exit"` (default, WAI-ARIA compliant): Tab follows normal DOM tab order and leaves the grid.
+- `"cycle"` (Excel-like): Tab walks every data cell, wrapping past the last cell of the last row back to the first cell of the first row.
+
+```tsx
+<Gridex data={data} columns={columns} keyboard={{ tabBehavior: "cycle" }} />
+```
+
+## Focus Stability Across Sort / Filter / Paginate
+
+Focus is tracked internally by row id, not by row index. Sorting, filtering, or paginating will keep focus on the same logical row even when its visible position changes. If the focused row is filtered away or moves to another page, focus falls back to the first visible row at the same column and the change is announced via the grid's `aria-live` region for screen readers.
+
 ## Per-Column Editability
 
 ```tsx
