@@ -576,6 +576,10 @@ const myLocale: GridexTranslations = {
     descending: "descending",
     filteredTo: "Filtered to {count} of {total} rows",
     filtersCleared: "Filters cleared",
+    // Optional accessibility strings — omit to use the English default.
+    filterBy: "Filter {column}",   // aria-label on filter inputs
+    pageSize: "Rows per page",     // aria-label on pagination page-size select
+    columnGroup: "Column group",   // aria-label on placeholder/internal header cells
   },
 };
 ```
