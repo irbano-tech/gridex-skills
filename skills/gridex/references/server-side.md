@@ -32,36 +32,52 @@ Replace `data` with `dataSource` to enable server-side mode. The grid manages so
 ## GridexDataSource Interface
 
 ```typescript
-interface GridexDataSource<TData> {
+interface GridexDataSource<TData = any> {
   /** Server fetch function — called on every sort/filter/pagination change */
   fetchData: (request: GridexServerRequest) => Promise<GridexServerResponse<TData>>;
-  /** Default page size (default: 10) */
+  /** Pagination mode (default: "offset") */
+  paginationMode?: "offset" | "cursor";
+  /** Initial page size (default: 10) */
   pageSize?: number;
+  /** Available page size options (default: [10, 25, 50, 100]) */
+  pageSizeOptions?: number[];
   /** Debounce delay in ms for filter/sort changes (default: 300) */
   debounceMs?: number;
   /** Show filter row (default: false) */
   showFilterRow?: boolean;
   /** Show global filter (default: false) */
   globalFilter?: boolean;
+  /** Fetch grouped data when a group row is expanded */
+  fetchGroupData?: (request: GridexServerGroupRequest) =>
+    Promise<{ data: TData[]; hasMore?: boolean }>;
+  /** Fetch children for a tree node (lazy loading) */
+  fetchChildren?: (parentId: string) => Promise<TData[]>;
+  /** Loading mode (default: "pagination") */
+  loadingMode?: "pagination" | "infinite" | "viewport";
   /** Enable response caching */
   cache?: boolean | { ttl: number };
-  /** Initial sorting state */
-  defaultSort?: SortingState;
+  /** Periodic auto re-fetch interval (ms) */
+  revalidateMs?: number;
 }
 
 interface GridexServerRequest {
   sorting: SortingState;
   filters: ColumnFiltersState;
   globalFilter: string;
-  pageIndex: number;
+  pageIndex: number;         // Used in offset mode
   pageSize: number;
+  cursor?: string;           // Used in cursor mode
 }
 
 interface GridexServerResponse<TData> {
   data: TData[];
   totalRows: number;
+  nextCursor?: string;       // Required in cursor mode
+  previousCursor?: string;
 }
 ```
+
+There is no `defaultSort` on `GridexDataSource`. Pass `sorting.defaultSort` on `<Gridex>` instead — the sorting config still applies in server-side mode and Gridex forwards the sort state to `fetchData`.
 
 ## Caching
 
@@ -104,7 +120,7 @@ function MyGrid() {
         columns={columns}
         // Pass server-side state to grid
         sorting={{ state: ds.sorting, onSortingChange: ds.onSortingChange }}
-        filtering={{ state: ds.filters, onFiltersChange: ds.onFiltersChange }}
+        filtering={{ state: ds.filters, onFilteringChange: ds.onFiltersChange }}
         pagination={{
           state: ds.pagination,
           onPaginationChange: ds.onPaginationChange,
@@ -120,62 +136,72 @@ function MyGrid() {
 
 ## Server-Side Grouping
 
-Fetch grouped data lazily — only expand groups when the user clicks:
+Server-side grouping is wired through `dataSource.fetchGroupData` — Gridex calls it when a group row is expanded and passes the path of group keys. Top-level rows still come from `fetchData`.
 
 ```tsx
 <Gridex
   columns={columns}
   dataSource={{
-    fetchData: async (request) => {
-      // Handle group requests
-      if (request.groupColumns?.length) {
-        return fetchGroupedData(request);
-      }
-      return fetchFlatData(request);
+    fetchData: async (req) => fetchFlatData(req),
+    fetchGroupData: async ({ groupKeys, sorting, filters }) => {
+      const rows = await api.fetchChildren(groupKeys, { sorting, filters });
+      return { data: rows, hasMore: false };
     },
     pageSize: 50,
   }}
   grouping={{
-    enabled: true,
-    serverSide: true,
-    defaultGrouping: ["department"],
+    groupBy: ["department"],      // Columns to group by
+    showAggregation: true,
   }}
 />
 ```
 
 ### Server Group Request
 
-When server-side grouping is enabled, `fetchData` receives an extended request:
-
 ```typescript
-interface GridexServerGroupRequest extends GridexServerRequest {
-  /** Columns to group by */
-  groupColumns?: string[];
+interface GridexServerGroupRequest {
   /** Path of expanded group keys (e.g., ["Engineering", "Frontend"]) */
-  groupKeys?: string[];
+  groupKeys: string[];
+  /** Current sorting state */
+  sorting: SortingState;
+  /** Current column filter state */
+  filters: ColumnFiltersState;
 }
 ```
 
-Your API should return:
-- When `groupColumns` is set but `groupKeys` is empty: top-level group rows with aggregations
-- When `groupKeys` has values: child rows under the expanded group path
+Return `{ data: TData[]; hasMore?: boolean }` — `data` contains the child rows for the expanded group path.
 
 ## Server-Side Tree Data
 
-Load tree nodes lazily from the server:
+Load tree nodes lazily. For a non-dataSource tree, set `treeData.loadChildren`. In server-side (`dataSource`) mode, provide `dataSource.fetchChildren(parentId)` — Gridex calls it by row id when a tree row is expanded.
 
 ```tsx
+// Standalone lazy tree (client-side data, async children)
 <Gridex
+  data={rootRows}
   columns={columns}
   treeData={{
     enabled: true,
-    serverSide: true,
-    fetchChildren: async (parentRow) => {
-      const res = await fetch(`/api/nodes/${parentRow.id}/children`);
+    getSubRows: (row) => row.children,
+    loadChildren: async (row) => {
+      const res = await fetch(`/api/nodes/${row.id}/children`);
       return res.json();
     },
-    hasChildren: (row) => row.childCount > 0,
+    defaultExpandedDepth: 0,
   }}
+/>
+
+// dataSource-driven lazy tree
+<Gridex
+  columns={columns}
+  dataSource={{
+    fetchData: async (req) => fetchFlatData(req),
+    fetchChildren: async (parentId) => {
+      const res = await fetch(`/api/nodes/${parentId}/children`);
+      return res.json();
+    },
+  }}
+  treeData={{ enabled: true, getSubRows: (row) => row.children }}
 />
 ```
 
@@ -236,7 +262,7 @@ function ControlledServerGrid() {
       data={data}
       columns={columns}
       sorting={{ state: sorting, onSortingChange: setSorting }}
-      filtering={{ state: filters, onFiltersChange: setFilters }}
+      filtering={{ state: filters, onFilteringChange: setFilters }}
       pagination={{
         state: pagination,
         onPaginationChange: setPagination,

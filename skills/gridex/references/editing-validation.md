@@ -369,29 +369,38 @@ Warn users before leaving with unsaved changes:
 />
 ```
 
-## Transaction API (Undo/Redo)
+## Transaction API (Live Updates)
+
+`useTransactionAPI` manages a mutable data array via `addRows` / `updateRows` / `removeRows` / `applyTransaction`. It returns the current `data`, the transaction `api`, and a `flashCells` set (keys `rowId:columnId`) for highlighting recently-changed cells. It is **not** an undo/redo hook — it does not expose `undo`, `redo`, or a history stack.
 
 ```tsx
 import { useTransactionAPI } from "gridex";
+import type { GridexTransactionAPI } from "gridex";
 
 function MyGrid() {
-  const { data, setData, undo, redo, canUndo, canRedo, history } = useTransactionAPI(initialData);
+  const { data, api, flashCells } = useTransactionAPI<Person>({
+    initialData,
+    getRowId: (row) => row.id,
+    newRowTemplate: { role: "member" },    // Defaults for api.addRows
+    newRowPosition: "top",                 // "top" | "bottom" (default)
+    onCellValueChange: ({ rowId, columnId, oldValue, newValue }) => {
+      // Fires when api.updateRows or applyTransaction changes a cell
+    },
+  });
 
   return (
     <div>
-      <button onClick={undo} disabled={!canUndo}>Undo</button>
-      <button onClick={redo} disabled={!canRedo}>Redo</button>
+      <button onClick={() => api.addRows([{ id: uuid(), name: "New" }])}>
+        Add Row
+      </button>
       <Gridex
         data={data}
         columns={columns}
+        getRowId={(row) => row.id}
         editing={{
           enabled: true,
-          onAfterEdit: ({ rowIndex, columnId, newValue }) => {
-            setData(prev => {
-              const next = [...prev];
-              next[rowIndex] = { ...next[rowIndex], [columnId]: newValue };
-              return next;
-            });
+          onAfterEdit: ({ rowIndex, columnId, newValue, row }) => {
+            api.updateRows([{ ...(row as Person), [columnId]: newValue }]);
           },
         }}
       />
@@ -399,6 +408,8 @@ function MyGrid() {
   );
 }
 ```
+
+`GridexTransactionAPI` exposes `addRows(rows)`, `updateRows(updates)`, `removeRows(rowIds)`, and `applyTransaction({ add?, update?, remove? })`.
 
 ## CRUD Toolbar
 

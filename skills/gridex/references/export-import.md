@@ -15,14 +15,18 @@ function ExportToolbar() {
   return (
     <div>
       <button onClick={() => exportAPI?.downloadCSV()}>CSV</button>
-      <button onClick={() => exportAPI?.downloadExcel()}>Excel XML</button>
-      <button onClick={() => exportAPI?.downloadXlsx()}>XLSX</button>
+      <button onClick={() => exportAPI?.downloadExcel()}>Excel (.xls)</button>
       <button onClick={() => exportAPI?.downloadPDF()}>PDF</button>
-      <button onClick={() => exportAPI?.copyToClipboard("tsv")}>Copy</button>
+      <button onClick={() => exportAPI?.copyToClipboard()}>Copy</button>
+      <button onClick={() => exportAPI?.copySelectionToClipboard()}>Copy Selection</button>
+      <button onClick={() => exportAPI?.importCSV(file)}>Import CSV</button>
+      <button onClick={() => exportAPI?.importExcel(file)}>Import Excel</button>
     </div>
   );
 }
 ```
+
+`exportAPI` exposes `downloadCSV`, `downloadExcel`, `downloadPDF`, `copyToClipboard`, `copySelectionToClipboard`, `importCSV`, `importExcel`, and `exportToCSV`. XLSX is only available via the standalone `downloadXlsx`/`generateXlsx` utilities below — there is no `exportAPI.downloadXlsx`.
 
 ## CSV Export
 
@@ -48,20 +52,22 @@ exportAPI?.downloadCSV({
 
 ### Copy to Clipboard
 
+`copyToClipboard` writes the grid rows as tab-separated values (Excel/Sheets compatible). It accepts optional scope options (`selectedOnly`, `visibleOnly`, `includeHeaders`, etc.) — it does **not** accept a format string.
+
 ```tsx
 import { copyTextToClipboard } from "gridex";
 
-// Copy as TSV (tab-separated, for pasting into Excel)
-exportAPI?.copyToClipboard("tsv");
+// Default — all filtered rows, visible columns
+await exportAPI?.copyToClipboard();
 
-// Copy as CSV
-exportAPI?.copyToClipboard("csv");
+// Selected rows only
+await exportAPI?.copyToClipboard({ selectedOnly: true });
 
-// Copy as HTML table
-exportAPI?.copyToClipboard("html");
+// Or use the dedicated selection helper
+await exportAPI?.copySelectionToClipboard();
 
-// Direct utility
-copyTextToClipboard(csvString);
+// Direct utility for arbitrary text
+await copyTextToClipboard(csvString);
 ```
 
 ## Excel XML Export
@@ -87,34 +93,24 @@ Excel with colors, fonts, borders, and formatting:
 
 ```tsx
 import { generateStyledExcelXML, downloadStyledExcel } from "gridex";
+import type { GridexExcelStyleOptions } from "gridex";
 
 const options: GridexExcelStyleOptions = {
-  filename: "styled-export.xls",
-  title: "Sales Report",
-  // Header styling
+  sheetName: "Sales Report",
   headerStyle: {
-    backgroundColor: "#1a73e8",
-    color: "#ffffff",
-    fontWeight: "bold",
-    fontSize: 12,
+    bold: true,
+    fontColor: "#FFFFFF",
+    backgroundColor: "#1A73E8",
+    alignment: "center",
   },
-  // Cell styling (per column or global)
-  cellStyles: {
-    amount: {
-      numberFormat: "#,##0.00",
-      textAlign: "right",
-    },
-    status: {
-      backgroundColor: (value) => value === "active" ? "#e6f4ea" : "#fce8e6",
-    },
+  columnStyles: {
+    amount: { numberFormat: "#,##0.00", alignment: "right" },
+    status: { bold: true },
   },
-  // Alternating row colors
-  stripedRows: true,
-  stripedColor: "#f8f9fa",
-  // Column widths
-  columnWidths: { name: 200, amount: 120 },
-  // Freeze header row
-  freezeHeader: true,
+  frozenRows: 1,       // Freeze header row
+  frozenColumns: 0,
+  autoFilter: true,    // Add AutoFilter dropdowns to header
+  asExcelTable: true,  // Wrap as an Excel Table object
 };
 
 downloadStyledExcel(table, options);
@@ -124,28 +120,33 @@ downloadStyledExcel(table, options);
 
 ```typescript
 interface GridexExcelStyleOptions {
-  filename?: string;
-  title?: string;
   headerStyle?: GridexExcelCellStyle;
-  cellStyles?: Record<string, GridexExcelCellStyle>;
-  stripedRows?: boolean;
-  stripedColor?: string;
-  columnWidths?: Record<string, number>;
-  freezeHeader?: boolean;
-  selectedOnly?: boolean;
+  columnStyles?: Record<string, GridexExcelCellStyle>;
+  frozenColumns?: number;
+  frozenRows?: number;                   // Default: 1 (header)
+  autoFilter?: boolean;                  // Default: true
+  sheetName?: string;                    // Default: "Sheet1"
+  protection?: {
+    enabled: boolean;
+    password?: string;
+    editableColumns?: string[];
+  };
+  asExcelTable?: boolean;
+  tableName?: string;                    // Default: "GridexTable"
+  useWebWorker?: boolean;
 }
 
 interface GridexExcelCellStyle {
-  backgroundColor?: string | ((value: unknown) => string);
-  color?: string;
-  fontWeight?: "bold" | "normal";
-  fontStyle?: "italic" | "normal";
-  fontSize?: number;
-  textAlign?: "left" | "center" | "right";
-  numberFormat?: string;
-  border?: GridexCellBorder;
+  bold?: boolean;
+  italic?: boolean;
+  fontColor?: string;                    // Hex, e.g. "#FF0000"
+  backgroundColor?: string;              // Hex
+  numberFormat?: string;                 // e.g. "#,##0.00", "yyyy-mm-dd"
+  alignment?: "left" | "center" | "right";
 }
 ```
+
+For web-worker export use `downloadStyledExcelAsync` and set `useWebWorker: true`.
 
 ## XLSX Export
 
@@ -153,46 +154,49 @@ Full XLSX format with multiple sheets, formulas, and cell references:
 
 ```tsx
 import { generateXlsx, downloadXlsx } from "gridex";
+import type { XlsxOptions, XlsxSheet } from "gridex";
 
-const options: XlsxOptions = {
+const options: XlsxOptions & { filename?: string } = {
   filename: "report.xlsx",
   sheets: [
     {
       name: "Sales Data",
-      data: salesData,
-      columns: salesColumns,
-    },
-    {
-      name: "Summary",
-      data: summaryData,
-      columns: summaryColumns,
+      headers: [
+        { id: "region", label: "Region" },
+        { id: "revenue", label: "Revenue" },
+      ],
+      rows: salesData,            // Row objects keyed by header id
+      frozenRows: 1,
+      autoFilter: true,
+      headerBold: true,
     },
   ],
 };
 
-// Generate as ArrayBuffer
-const buffer = generateXlsx(options);
+// Generate as Uint8Array
+const data = generateXlsx(options);
 
-// Download as file
+// Download as file (filename is passed alongside the options)
 downloadXlsx(options);
-
-// Via export API (single sheet from current grid state)
-exportAPI?.downloadXlsx({ filename: "export.xlsx" });
 ```
+
+`exportAPI` does **not** expose a `downloadXlsx` method — use the standalone `downloadXlsx`/`generateXlsx` utilities above and build `XlsxSheet` entries from your data.
 
 ### XlsxOptions
 
 ```typescript
 interface XlsxOptions {
-  filename?: string;
   sheets: XlsxSheet[];
 }
 
 interface XlsxSheet {
   name: string;
-  data: unknown[];
-  columns: ColumnDef[];
-  columnWidths?: Record<string, number>;
+  headers: { id: string; label: string }[];
+  rows: Record<string, unknown>[];
+  formatters?: Record<string, (value: unknown, row: unknown) => string>;
+  frozenRows?: number;
+  autoFilter?: boolean;
+  headerBold?: boolean;
 }
 ```
 
@@ -202,42 +206,41 @@ Generate PDF via an HTML print dialog:
 
 ```tsx
 import { generatePDFHtml, printPDF } from "gridex";
+import type { GridexPDFOptions } from "gridex";
 
 // Generate HTML string for PDF
 const html = generatePDFHtml(table, {
   title: "Sales Report",
-  orientation: "landscape",  // "portrait" | "landscape"
-  pageSize: "A4",            // "A4" | "Letter"
-  includeHeaders: true,
+  subtitle: "Q4 totals",
+  orientation: "landscape",      // "portrait" | "landscape"
+  pageSize: "A4",                // "A4" | "Letter"
   selectedOnly: false,
-  headerStyle: { backgroundColor: "#1a73e8", color: "white" },
-  footerText: "Generated by Gridex",
+  currentPageOnly: false,
+  columns: ["region", "revenue"],
+  footer: "Generated by Gridex",
+  filename: "Sales Report",
 });
 
 // Open print dialog
-printPDF(table, {
-  title: "Sales Report",
-  orientation: "landscape",
-});
+printPDF(table, { title: "Sales Report", orientation: "landscape" });
 
 // Via export API
-exportAPI?.downloadPDF({
-  title: "Report",
-  orientation: "landscape",
-});
+exportAPI?.downloadPDF({ title: "Report", orientation: "landscape" });
 ```
 
 ### GridexPDFOptions
 
 ```typescript
 interface GridexPDFOptions {
-  title?: string;
-  orientation?: "portrait" | "landscape";
   pageSize?: "A4" | "Letter";
-  includeHeaders?: boolean;
+  orientation?: "portrait" | "landscape";
+  title?: string;
+  subtitle?: string;
+  footer?: string;
   selectedOnly?: boolean;
-  headerStyle?: CSSProperties;
-  footerText?: string;
+  currentPageOnly?: boolean;
+  columns?: string[];            // Column IDs to include (default: all visible)
+  filename?: string;             // Used as document title (default: "Export")
 }
 ```
 
@@ -253,86 +256,108 @@ All export methods support these scope options:
 
 ## Import
 
-### CSV Import
+The simplest import path is the `exportAPI` methods — they already have the active `table` context:
+
+```tsx
+const { exportAPI } = useGridex();
+
+const result = await exportAPI?.importCSV(file, {
+  onBeforeImport: (raw) => raw,              // Optional mutation/cancel hook
+  xlsxParser: myXlsxParser,                  // Only needed for .xlsx files
+});
+
+if (result && result.errorCount > 0) {
+  console.error("Validation errors:", result.errors);
+} else if (result) {
+  setData((prev) => [...prev, ...(result.rows as Person[])]);
+}
+```
+
+### CSV Import (standalone)
+
+The standalone helpers require a TanStack `table` instance so they can map headers to columns and run validators.
 
 ```tsx
 import { parseCSVText, importCSVFile } from "gridex";
 
-// Parse CSV string
-const rows = parseCSVText(csvString, {
-  delimiter: ",",
-  hasHeaders: true,
-});
+// Parse CSV text directly (no validation)
+const parsed = parseCSVText(csvString);   // { headers, rows }
 
-// Import from file input
+// Import from a File — requires the active table
 const handleFileUpload = async (file: File) => {
-  const result: GridexImportResult = await importCSVFile(file, {
-    columns: columns,      // Map CSV columns to grid columns
-    validate: true,        // Run column validators
-    skipErrors: false,     // Stop on first error
+  const result = await importCSVFile(file, table, {
+    onBeforeImport: (raw) => raw,
   });
 
-  if (result.errors.length > 0) {
-    console.error("Import errors:", result.errors);
-  } else {
-    setData(prev => [...prev, ...result.data]);
-  }
+  if (result.errorCount > 0) console.error(result.errors);
+  else setData((prev) => [...prev, ...(result.rows as Person[])]);
 };
 ```
 
-### Excel Import
+### Excel Import (standalone)
 
 ```tsx
-import { importExcelFile, parseXlsxBufferAsync } from "gridex";
+import { importExcelFile, parseXlsxBufferAsync, parseCsvFile } from "gridex";
 
-// Import from file input
-const result = await importExcelFile(file, {
-  columns: columns,
-  sheetIndex: 0,      // Which sheet to import
-  headerRow: 0,        // Row index of headers
-  validate: true,
+// Import from a File — requires the active table. Provide `xlsxParser` for real .xlsx support.
+const result = await importExcelFile(file, table, {
+  xlsxParser: async (buffer) => await myParser(buffer),
 });
 
-// Parse XLSX buffer directly
+// Parse an XLSX buffer directly — returns GridexImportData
 const buffer = await file.arrayBuffer();
-const sheets = await parseXlsxBufferAsync(buffer);
-// sheets: Array<{ name: string; rows: string[][] }>
+const raw = await parseXlsxBufferAsync(buffer);   // { headers: string[], rows: string[][] }
+
+// Parse a CSV file directly — returns GridexImportData
+const rawCsv = await parseCsvFile(file);
 ```
 
-### Import Pipeline
+### Import Pipeline (low-level)
+
+`runImportPipeline` runs the map → coerce → validate steps on pre-parsed data. It takes the active `table` so it can look up column validators and meta.
 
 ```tsx
 import { runImportPipeline } from "gridex";
 
-const result = await runImportPipeline(rawData, {
-  columns: columns,
-  validate: true,
-  transform: (row) => ({
-    ...row,
-    createdAt: new Date(row.createdAt),  // Parse dates
-    amount: parseFloat(row.amount),       // Parse numbers
-  }),
-  skipErrors: true,  // Continue past invalid rows
-});
+const result = await runImportPipeline(
+  rawData,      // GridexImportData: { headers: string[], rows: string[][] }
+  table,        // TanStack Table instance (from useGridex().table)
+  { onBeforeImport: (raw) => raw },
+);
 
-console.log(`Imported ${result.data.length} rows, ${result.errors.length} errors`);
+console.log(`Imported ${result.rowCount} rows, ${result.errorCount} errors`);
 ```
 
 ### GridexImportResult
 
 ```typescript
-interface GridexImportResult<TData = unknown> {
-  data: TData[];
+interface GridexImportResult {
+  /** Number of rows successfully imported */
+  rowCount: number;
+  /** Number of rows that had at least one validation error */
+  errorCount: number;
+  /** Detailed validation errors per cell */
   errors: GridexImportValidationError[];
-  totalRows: number;
-  importedRows: number;
+  /** The parsed & validated rows (rows with errors are still included) */
+  rows: Record<string, unknown>[];
 }
 
 interface GridexImportValidationError {
-  row: number;
-  column: string;
-  value: unknown;
-  message: string;
+  rowIndex: number;         // 0-based row index in the imported file (excluding header)
+  columnId: string;         // Grid column id that failed validation
+  value: unknown;           // Raw value that failed
+  message: string;          // Validation error message
+}
+
+interface GridexImportOptions {
+  onBeforeImport?: (data: GridexImportData) => GridexImportData | false;
+  xlsxParser?: (buffer: ArrayBuffer) =>
+    Promise<GridexImportData> | GridexImportData;
+}
+
+interface GridexImportData {
+  headers: string[];
+  rows: string[][];
 }
 ```
 

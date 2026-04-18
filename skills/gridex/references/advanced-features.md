@@ -81,16 +81,16 @@ Transform flat data into pivot table views with row/column grouping and aggregat
 import { usePivotTable } from "gridex";
 
 function PivotGrid() {
-  const { data: pivotData, columns: pivotColumns } = usePivotTable({
-    data: salesData,
-    rows: ["region", "salesperson"],       // Row grouping fields
-    columns: ["quarter"],                   // Column grouping fields
-    values: [
-      { field: "revenue", aggFn: "sum", label: "Total Revenue" },
-      { field: "quantity", aggFn: "avg", label: "Avg Quantity" },
+  const { pivotData, pivotColumns, isActive } = usePivotTable(salesData, {
+    enabled: true,
+    rowFields: ["region", "salesperson"],   // Row grouping fields
+    columnField: "quarter",                  // Field whose values become pivot columns
+    valueFields: [
+      { field: "revenue", aggregation: "sum", header: "Total Revenue" },
+      { field: "quantity", aggregation: "avg", header: "Avg Quantity" },
     ],
-    showSubtotals: true,
     showGrandTotal: true,
+    showColumnTotals: false,
   });
 
   return <Gridex data={pivotData} columns={pivotColumns} />;
@@ -100,23 +100,31 @@ function PivotGrid() {
 ### Pivot Configuration
 
 ```typescript
-interface GridexPivotConfig {
-  /** Fields to group by as rows */
-  rows: string[];
-  /** Fields to pivot as columns */
-  columns: string[];
-  /** Aggregation definitions */
-  values: GridexPivotValueField[];
-  /** Show subtotals per group (default: true) */
-  showSubtotals?: boolean;
-  /** Show grand total row (default: true) */
+interface GridexPivotConfig<TData = unknown> {
+  /** Enable pivot mode */
+  enabled?: boolean;
+  /** Fields to use as row grouping (left-side labels) */
+  rowFields: string[];
+  /** Field whose unique values become pivot columns */
+  columnField: string;
+  /** Value fields to aggregate per pivot cell */
+  valueFields: GridexPivotValueField[];
+  /** Show grand total row at bottom (default: true) */
   showGrandTotal?: boolean;
+  /** Show column totals (default: false) */
+  showColumnTotals?: boolean;
+  /** Server-side pivot callback */
+  fetchPivotData?: (params: {
+    rowFields: string[];
+    columnField: string;
+    valueFields: GridexPivotValueField[];
+  }) => Promise<{ rows: TData[]; pivotColumns: string[] }>;
 }
 
 interface GridexPivotValueField {
   field: string;
-  aggFn: "sum" | "avg" | "count" | "min" | "max" | "distinctCount";
-  label?: string;
+  aggregation?: GridexAggregationFnName;   // "sum" | "avg" | "count" | "min" | "max" | ...
+  header?: string;
 }
 ```
 
@@ -130,27 +138,12 @@ Integrated chart visualization from grid data:
   columns={columns}
   chart={{
     enabled: true,
-    type: "bar",            // "bar" | "line" | "pie" | "area" | "scatter"
-    categoryField: "month",
-    valueFields: ["revenue", "expenses"],
-    position: "bottom",     // "bottom" | "right" | "sidebar"
+    defaultType: "bar",         // "bar" | "line" | "pie"
+    defaultLabelColumn: "month",
+    defaultValueColumn: "revenue",
     height: 300,
   }}
 />
-```
-
-### Chart Data Hook
-
-```tsx
-import { useChartData } from "gridex";
-
-const chartData = useChartData({
-  data: data,
-  categoryField: "month",
-  valueFields: ["revenue", "expenses"],
-  aggregation: "sum",
-});
-// Returns: { labels: string[], datasets: { field, values }[] }
 ```
 
 ### Sparkline Columns
@@ -236,75 +229,71 @@ col.accessor("profit", {
 
 ## Responsive Views
 
-Automatically switch to card or list view on small screens:
+Switch to card or list view on small screens. View switching uses **flat props** on `<Gridex>` — not a `responsive` config object. The `responsive` prop below is a separate feature for adaptive column hiding.
 
 ```tsx
 <Gridex
   data={data}
   columns={columns}
-  responsive={{
-    breakpoint: 768,            // Switch below this width (px)
-    mobileView: "card",         // "card" | "list"
-    renderCard: (row) => (
-      <div className="card">
-        <h3>{row.original.name}</h3>
-        <p>{row.original.email}</p>
-        <span>${row.original.amount}</span>
-      </div>
-    ),
-    renderListItem: (row) => (
-      <div className="list-item">
-        <span>{row.original.name}</span>
-        <span>${row.original.amount}</span>
-      </div>
-    ),
-  }}
+  responsiveView="auto"             // "table" | "list" | "card" | "auto"
+  responsiveBreakpoint={600}        // px — auto mode switches from table to list below this
+  renderCard={(row, columns) => (
+    <div className="card">
+      <h3>{(row as Person).name}</h3>
+      <p>{(row as Person).email}</p>
+      <span>${(row as Person).amount}</span>
+    </div>
+  )}
+  renderListItem={(row, columns) => (
+    <div className="list-item">
+      <span>{(row as Person).name}</span>
+      <span>${(row as Person).amount}</span>
+    </div>
+  )}
 />
 ```
 
-### Responsive Column Hiding
+`renderCard` / `renderListItem` receive `(row, columns)` where `columns` is an array of `{ id, label, value, formattedValue }`.
 
-Hide columns based on container width:
+### Adaptive Responsive Column Hiding
 
-```tsx
-col.accessor("notes", {
-  responsivePriority: 1,  // Hidden first (lowest priority)
-});
-col.accessor("email", {
-  responsivePriority: 2,  // Hidden second
-});
-col.accessor("name", {
-  // No responsivePriority = never auto-hidden
-});
-```
-
-### Adaptive Detail Rows
-
-On small screens, hidden columns appear in a detail row below each data row:
+Separate feature — hides columns progressively based on container width. Uses the `responsive` object prop and per-column `responsivePriority`.
 
 ```tsx
+col.accessor("notes", { responsivePriority: 1 });   // Hidden first
+col.accessor("email", { responsivePriority: 2 });   // Hidden second
+col.accessor("name",  { /* no priority = never auto-hidden */ });
+
 <Gridex
+  columns={columns}
   responsive={{
-    breakpoint: 768,
-    mobileView: "table",  // Keep table but show detail rows for hidden columns
+    enabled: true,
+    breakpoints: { sm: 480, md: 768, lg: 1024 },   // Width thresholds (px)
   }}
 />
 ```
+
+Hidden column values remain accessible via a per-row expand button.
 
 ## Cell Comments / Notes
 
-Attach notes to individual cells:
+Attach notes to individual cells. `cellNotes` is keyed first by **row id** (as returned by `getRowId`), then by column id — not a flat `"rowIndex:columnId"` key. The callback is `onNoteChange(rowId, columnId, note)`.
 
 ```tsx
 <Gridex
   data={data}
   columns={columns}
+  getRowId={(row) => row.id}
   cellNotes={{
-    "0:name": { text: "Verified by admin", author: "John", createdAt: "2024-01-15" },
-    "2:status": { text: "Needs review", title: "Important" },
+    "user-1": {
+      name: { text: "Verified by admin", author: "John", createdAt: "2024-01-15" },
+    },
+    "user-3": {
+      status: { text: "Needs review", title: "Important" },
+    },
   }}
-  onCellNoteChange={(rowIndex, columnId, note) => {
-    // Save note
+  onNoteChange={(rowId, columnId, note) => {
+    // Save note (note is null when cleared)
   }}
 />
 ```
@@ -346,51 +335,32 @@ Right-click context menu:
 
 ## State Persistence
 
-Save and restore grid state to localStorage:
+Save and restore grid state (sort, filters, column order/visibility/sizing, pagination page size) to localStorage:
 
 ```tsx
 <Gridex
   data={data}
   columns={columns}
-  statePersistence={{
-    key: "my-grid-state",          // localStorage key
-    include: ["sorting", "filtering", "columnOrder", "columnSizing", "columnVisibility"],
-    debounceMs: 500,               // Debounce save
+  persistence={{
+    stateKey: "my-grid-state",     // localStorage key (required)
+    storage: sessionStorage,       // Optional — defaults to localStorage
   }}
 />
 ```
 
-## Multi-Grid Synchronization
-
-Synchronize state across multiple grid instances:
-
-```tsx
-import { useGridSync } from "gridex";
-
-function Dashboard() {
-  const sync = useGridSync({
-    syncSorting: true,
-    syncFiltering: true,
-    syncSelection: false,
-  });
-
-  return (
-    <div>
-      <Gridex data={salesData} columns={salesColumns} {...sync.getProps("sales")} />
-      <Gridex data={inventoryData} columns={inventoryColumns} {...sync.getProps("inventory")} />
-    </div>
-  );
-}
-```
+The persisted shape is a fixed set of keys — not configurable per field.
 
 ## Sidebar / Tool Panels
 
-Built-in sidebar with configurable panels:
+Built-in sidebar. Each panel is a `{ id, label, icon, component? }` object (no string shortcuts). The `columns` and `filters` built-ins live inside gridex-mantine / custom slots — pass your own panel objects when registering.
 
 ```tsx
 <Gridex
   sidebar={{
-    panels: ["columns", "filters"],   // Built-in panels
+    panels: [
+      { id: "columns", label: "Columns", icon: "☰" },
+      { id: "filters", label: "Filters", icon: "▽" },
+    ],
     defaultPanel: "columns",
     position: "right",                 // "left" | "right"
     width: 300,
@@ -404,14 +374,9 @@ Built-in sidebar with configurable panels:
 <Gridex
   sidebar={{
     panels: [
-      "columns",
-      "filters",
-      {
-        id: "settings",
-        label: "Settings",
-        icon: SettingsIcon,
-        component: MySettingsPanel,
-      },
+      { id: "columns", label: "Columns", icon: "☰" },
+      { id: "filters", label: "Filters", icon: "▽" },
+      { id: "settings", label: "Settings", icon: "⚙", component: MySettingsPanel },
     ],
   }}
 />
@@ -419,19 +384,19 @@ Built-in sidebar with configurable panels:
 
 ## Status Bar
 
-Bottom status bar with aggregation panels:
+Bottom status bar with aggregation panels. Each panel is a `{ id, type, label?, columnId?, render? }` object — `type` is one of `"totalRows" | "filteredRows" | "selectedRows" | "sum" | "avg" | "min" | "max" | "count" | "custom"`.
 
 ```tsx
 <Gridex
   statusBar={{
     panels: [
-      "rowCount",          // "Rows: 1,234"
-      "selectedCount",     // "Selected: 5"
-      "aggregation",       // Shows sum/avg/count of selected cells
-      {
-        id: "custom",
-        component: ({ data }) => <span>Custom: {data.length}</span>,
-      },
+      { id: "total", type: "totalRows" },
+      { id: "filtered", type: "filteredRows" },
+      { id: "selected", type: "selectedRows" },
+      { id: "sum-amount", type: "sum", columnId: "amount", label: "Total" },
+      { id: "custom", type: "custom", render: ({ table }) => (
+        <span>Rows: {table.getRowModel().rows.length}</span>
+      )},
     ],
   }}
 />
@@ -454,34 +419,47 @@ Stretch columns to fill the container width:
 
 ## Overlay / Loading
 
-Custom loading overlay:
+Replace loading, error, and empty-state overlays with custom React components. The prop is `overlays` (plural), and each entry is a component type — toggling is controlled by `loading` on `<Gridex>`.
 
 ```tsx
 <Gridex
-  overlay={{
-    loading: isLoading,
-    text: "Loading data...",
-    progress: 65,           // Optional progress percentage
+  loading={isLoading}
+  overlays={{
+    loading: ({ progress }) => <Spinner progress={progress} label="Loading..." />,
+    error: ({ message, onRetry }) => (
+      <ErrorBanner message={message} onRetry={onRetry} />
+    ),
+    noRows: () => <EmptyPlaceholder />,
   }}
 />
 ```
 
+Import the built-in `<ProgressBar>` helper if you just want progress rendering:
+
+```tsx
+import { ProgressBar } from "gridex";
+```
+
 ## Row Grouping with Aggregation
+
+Grouping controls which columns to group by. Aggregation values (sum/avg/count/min/max) are configured separately on `summary` (or `grouping.showAggregation` to toggle visibility in group rows).
 
 ```tsx
 <Gridex
   data={data}
   columns={columns}
   grouping={{
+    groupBy: ["department", "team"],       // Columns to group by
+    showAggregation: true,                 // Show aggregate values in group rows
+    onGroupingChange: (next) => {},        // Uncontrolled; use `state` for controlled
+  }}
+  summary={{
     enabled: true,
-    defaultGrouping: ["department", "team"],
     aggregations: {
       salary: "sum",
       age: "avg",
       id: "count",
     },
-    expandedByDefault: true,
-    showGroupCount: true,
   }}
 />
 ```
@@ -508,9 +486,10 @@ Hierarchical data with expand/collapse:
   treeData={{
     enabled: true,
     getSubRows: (row) => row.children,
-    defaultExpanded: true,          // Expand all by default
-    expandOnClick: true,            // Click row to expand (vs toggle button only)
-    indentSize: 24,                 // Indent per level (px)
+    defaultExpandedDepth: Infinity,  // 0 = collapsed, Infinity = all expanded
+    loadChildren: async (row) => {   // Optional async children loader (lazy tree)
+      return await api.fetchChildren(row.id);
+    },
   }}
 />
 ```

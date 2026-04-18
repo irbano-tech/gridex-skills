@@ -169,13 +169,25 @@ Gridex scopes dark mode via `[data-gridex-theme="dark"]` data attribute on the g
 
 ### System theme detection
 
-```tsx
-import { useTheme } from "gridex"; // or your own hook
+`useTheme` is an internal hook and is **not** exported from the `gridex` package. Pass `theme="auto"` — Gridex detects system preference automatically — or roll your own `window.matchMedia` hook:
 
-function App() {
-  const systemTheme = useTheme(); // "light" | "dark"
-  return <Gridex theme={systemTheme} />;
+```tsx
+import { useEffect, useState } from "react";
+
+function useSystemTheme(): "light" | "dark" {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  useEffect(() => {
+    const mql = window.matchMedia("(prefers-color-scheme: dark)");
+    const update = () => setTheme(mql.matches ? "dark" : "light");
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+  return theme;
 }
+
+// Or just let Gridex handle it:
+<Gridex theme="auto" />
 ```
 
 ### CSS-only dark mode

@@ -141,18 +141,19 @@ export default function App() {
     singleExpand: false,                   // Only one expanded at a time
   }}
 
-  // Grouping
+  // Grouping (row grouping by column values — aggregations live in `summary`)
   grouping={{
-    enabled: true,
-    defaultGrouping: ["department"],
-    aggregations: { salary: "sum", age: "avg" },
+    groupBy: ["department"],
+    showAggregation: true,
+    onGroupingChange: (grouping) => {},
   }}
 
   // Tree Data
   treeData={{
     enabled: true,
     getSubRows: (row) => row.children,
-    defaultExpanded: true,
+    defaultExpandedDepth: Infinity,        // 0 = collapsed, Infinity = all expanded
+    loadChildren: async (row) => [],       // Optional async children loader
   }}
 
   // Summary Row
@@ -181,15 +182,23 @@ export default function App() {
     onDelete: (rows) => {},
   }}
 
-  // Sidebar
+  // Sidebar — each panel is { id, label, icon, component? }
   sidebar={{
-    panels: ["columns", "filters"],
+    panels: [
+      { id: "columns", label: "Columns", icon: "☰" },
+      { id: "filters", label: "Filters", icon: "▽" },
+    ],
     defaultPanel: "columns",
   }}
 
-  // Status Bar
+  // Status Bar — each panel is { id, type, label?, columnId?, render? }
   statusBar={{
-    panels: ["rowCount", "selectedCount", "aggregation"],
+    panels: [
+      { id: "total", type: "totalRows" },
+      { id: "filtered", type: "filteredRows" },
+      { id: "selected", type: "selectedRows" },
+      { id: "sum-amount", type: "sum", columnId: "amount" },
+    ],
   }}
 
   // Context Menu
@@ -206,11 +215,16 @@ export default function App() {
   enableCellTooltips                       // Overflow tooltips
   tooltipConfig={{ delay: 500, position: "top" }}
 
-  // Responsive
+  // Responsive view switching (flat props — not a `responsive` object)
+  responsiveView="auto"                    // "table" | "list" | "card" | "auto"
+  responsiveBreakpoint={600}               // Auto-mode breakpoint (px, default 600)
+  renderCard={(row, columns) => <Card row={row} />}
+  renderListItem={(row, columns) => <Item row={row} />}
+
+  // Adaptive column hiding (separate `responsive` config — hides columns by width)
   responsive={{
-    breakpoint: 768,
-    mobileView: "card",                    // "card" | "list"
-    renderCard: (row) => <Card row={row} />,
+    enabled: true,
+    breakpoints: { sm: 480, md: 768, lg: 1024 },
   }}
 
   // Conditional Formatting
@@ -218,8 +232,13 @@ export default function App() {
     { column: "status", condition: (v) => v === "error", style: { color: "red" } },
   ]}
 
-  // Overlay
-  overlay={{ loading: isLoading, text: "Loading..." }}
+  // Overlays — `loading` is a boolean; `overlays` holds custom components
+  loading={isLoading}
+  overlays={{
+    loading: ({ progress }) => <Spinner progress={progress} />,
+    error: ({ message, onRetry }) => <ErrorBanner message={message} onRetry={onRetry} />,
+    noRows: () => <EmptyPlaceholder />,
+  }}
 
   // Events
   onGridReady={(api) => {}}
@@ -291,22 +310,25 @@ function MyToolbar() {
 const gridRef = useRef<GridexAPI>(null);
 
 // Navigation
-gridAPI.scrollToRow(rowIndex, "start" | "center" | "end");
-gridAPI.scrollToColumn(columnId);
+gridAPI.scrollToRow(rowIndex, "start" | "center" | "end" | "auto");
+gridAPI.scrollToCell(rowIndex, columnId, "start" | "center" | "end" | "auto");
 
 // Editing
 gridAPI.startEdit(rowIndex, columnId);
-gridAPI.stopEdit();
 
 // Selection
 gridAPI.selectRows([0, 1, 2]);
+gridAPI.deselectRows([0]);
+gridAPI.selectAll();
 gridAPI.deselectAll();
+gridAPI.getSelectedRows();
 
 // State
 gridAPI.refresh();
-gridAPI.resetState("all" | "sorting" | "filtering" | "pagination" | "selection");
+gridAPI.resetState("sorting" | "filtering" | "pagination");
 gridAPI.autoSizeColumn(columnId);
 gridAPI.autoSizeAllColumns();
+gridAPI.sizeColumnsToFit();
 ```
 
 ## Event Emitter
